@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useGit } from '../context/GitContext';
 
 const DashboardPage = () => {
-  const { repos, setCurrentView, handleSelectRepo } = useGit();
+  const { user, repos, setCurrentView, handleSelectRepo } = useGit();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
 
@@ -11,7 +11,7 @@ const DashboardPage = () => {
     const matchesSearch =
       r.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       r.desc?.toLowerCase().includes(searchTerm.toLowerCase());
-    if (filterType === 'public') return matchesSearch && r.visibility === 'Público';
+    if (filterType === 'public') return matchesSearch && r.visibility === 'Publico';
     if (filterType === 'private') return matchesSearch && r.visibility === 'Privado';
     return matchesSearch;
   });
@@ -25,6 +25,9 @@ const DashboardPage = () => {
             <span>WORKSPACE OVERVIEW</span>
             <span>•</span>
             <span>ACTIVE INSTANCE</span>
+          </div>
+          <div className="flex items-center gap-2 text-5xl font-mono text-[#7bd0ff] mb-1">
+            <span>{user.username}</span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-white mb-1">Mis Repositorios</h1>
           <p className="text-sm text-[#c3c5d8]">

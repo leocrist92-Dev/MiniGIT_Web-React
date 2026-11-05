@@ -54,7 +54,8 @@ export const gitService = {
       name: repo.nombre,
       desc: repo.descripcion || 'Sin descripción',
       visibility: repo.visibilidad,
-      defaultBranch: 'main',
+      defaultBranch: repo.rama_activa,
+      lang: repo.lenguaje_principal,
       updated: new Date(repo.fecha_creacion).toLocaleDateString(),
       files: [],
       branches: [{ name: 'main', isDefault: true }],
@@ -98,7 +99,9 @@ export const gitService = {
       headers: getAuthHeaders()
     });
 
-    const data = await res.json();
+    const dataCruda = await res.json();
+    const data = dataCruda.data
+    console.log(data)
     if (!res.ok) throw new Error(data.mensaje || 'Error al obtener commits');
 
     return data.map(c => ({

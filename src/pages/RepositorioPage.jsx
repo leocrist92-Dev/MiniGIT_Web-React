@@ -10,7 +10,8 @@ const RepositorioPage = () => {
     activeTab,
     setActiveTab,
     handleSelectFile,
-    setCurrentView
+    setCurrentView,
+    user
   } = useGit();
   const [showClone, setShowClone] = useState(false);
 
@@ -29,8 +30,8 @@ const RepositorioPage = () => {
             className="text-[#c3c5d8] cursor-pointer hover:underline"
             onClick={() => setCurrentView('dashboard')}
           >
-            {/*luis_dev*/}
-            {activeRepo.owner}
+            {/*activeRepo.owner*/}
+            {user.username}
           </span>
           <span className="text-[#8d90a2]">/</span>
           <span className="text-[#7bd0ff]">{activeRepo.name}</span>

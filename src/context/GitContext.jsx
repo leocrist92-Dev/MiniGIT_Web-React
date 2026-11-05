@@ -38,7 +38,7 @@ const handleLogin = async (email, password) => {
   try {
     const user = await gitService.login(email, password);
     setUser(user);
-    console.log(user);
+    console.log(user)
     
     // Una vez logueado, traemos los proyectos del backend
     const reposData = await gitService.getRepos(user);
