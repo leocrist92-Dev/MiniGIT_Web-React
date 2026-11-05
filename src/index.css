@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0');
+
+@import "tailwindcss";
+
+/*@tailwind base;
+@tailwind components;
+@tailwind utilities;*/
+
+/* Estilos de scrollbar oscuros personalizados estilo GitHub/MiniGit */
+::-webkit-scrollbar {
+width: 8px;
+height: 8px;
+}
+
+::-webkit-scrollbar-track {
+background: #0f131f;
+}
+
+::-webkit-scrollbar-thumb {
+background: #252a37;
+border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+background: #434656;
+}
+
+body {
+margin: 0;
+background-color: #0f131f;
+color: #dfe2f4;
+font-family: 'JetBrains Mono', monospace, system-ui, -apple-system, sans-serif;
+-webkit-font-smoothing: antialiased;
+}
