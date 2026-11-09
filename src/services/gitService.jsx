@@ -168,5 +168,36 @@ export const gitService = {
       versionBaseId: r.id_version_base,
       createdAt: r.fecha_creacion ? new Date(r.fecha_creacion).toLocaleDateString() : 'Sin fecha'
     }));
+  },
+
+  // Obtener estructura de carpetas de un commit
+  getCommitEstructura: async (repoName, branch, hash) => {
+    const res = await fetch(`${API_URL}/archivos/${repoName}/${branch}/${hash}/estructura`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Error al obtener la estructura del commit');
+    return await res.json();
+  },
+
+  // Obtener el código fuente de un archivo específico
+  getArchivoContenido: async (repoName, branch, hash, filePath) => {
+    // filePath se envía por query string y se codifica por si tiene barras (/)
+    const res = await fetch(`${API_URL}/archivos/${repoName}/${branch}/${hash}/archivo?path=${encodeURIComponent(filePath)}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Error al obtener el contenido del archivo');
+    return await res.json();
+  },
+
+  // Obtener las líneas modificadas (diff) de un commit
+  getCommitDiff: async (repoName, branch, hash) => {
+    const res = await fetch(`${API_URL}/archivos/${repoName}/${branch}/${hash}/diff`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Error al obtener el diff del commit');
+    return await res.json();
   }
 };

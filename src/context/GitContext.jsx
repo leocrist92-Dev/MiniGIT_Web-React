@@ -72,24 +72,46 @@ export const GitProvider = ({ children }) => {
   };
 
   const handleCreateRepo = async (formData) => {
-  setLoading(true);
-  const newRepo = await gitService.createRepo(formData);
-  setRepos([newRepo, ...repos]);
-  setActiveRepo(newRepo);
-  setCurrentView('repo-detail');
-  setActiveTab('code');
-  setLoading(false);
+    setLoading(true);
+    const newRepo = await gitService.createRepo(formData);
+    setRepos([newRepo, ...repos]);
+    setActiveRepo(newRepo);
+    setCurrentView('repo-detail');
+    setActiveTab('code');
+    setLoading(false);
   };
 
   const handleSelectRepo = async (repo) => {
     setActiveRepo(repo);
     setCurrentView('repo-detail');
+    setActiveTab('code'); // Asegurar que inicie en la pestaña de código
 
     // Si seleccionamos un repositorio, traemos sus commits reales desde la BD
     try {
       const commits = await gitService.getRepoCommits(repo.id);
-      setActiveRepo(prev => ({ ...prev, commits }));
+      //setActiveRepo(prev => ({ ...prev, commits }));
       obtenerRamasProyecto(repo.id)
+
+      let filesEstructura = [];
+      
+      // Si el repositorio tiene commits, leemos el ZIP del último commit para armar las carpetas
+      if (commits && commits.length > 0) {
+        const ultimoCommit = commits[0];
+        const ramaCommit = ultimoCommit.branch || repo.defaultBranch || 'main';
+        
+        filesEstructura = await gitService.getCommitEstructura(
+          repo.name, 
+          ramaCommit, 
+          ultimoCommit.fullHash
+        );
+      }
+
+      setActiveRepo(prev => ({
+        ...prev,
+        commits: commits,
+        files: filesEstructura // Guardamos la estructura real devuelta por el backend
+      }));
+
     } catch (error) {
       console.error('Error cargando historial de commits:', error);
     }
@@ -121,14 +143,55 @@ export const GitProvider = ({ children }) => {
   setLoading(false);
   };
 
-  const handleSelectCommit = (commit) => {
-  setActiveCommit(commit);
-  setCurrentView('commit-detail');
+  // Al seleccionar un commit: Buscamos su archivo diff.txt en el ZIP
+  const handleSelectCommit = async (commit) => {
+    try {
+      const ramaCommit = commit.branch || activeRepo.defaultBranch || 'main';
+
+      // Pedimos el array de líneas agregadas/eliminadas al backend
+      const diffs = await gitService.getCommitDiff(
+        activeRepo.name, 
+        ramaCommit, 
+        commit.fullHash
+      );
+
+      setActiveCommit({ 
+        ...commit, 
+        diffs: diffs, 
+        diffFile: 'Cambios registrados' // Título genérico para el encabezado del Diff
+      });
+
+      // Cambiamos a la vista que muestra DetalleCommitPage.jsx
+      setCurrentView('commit-detail');
+    } catch (error) {
+      console.error('Error al cargar el diff:', error);
+      setActiveCommit({ ...commit, diffs: [] });
+      setCurrentView('commit-detail');
+    }
   };
 
-  const handleSelectFile = (file) => {
-  setActiveFile(file);
-  setCurrentView('view-file');
+  // Al seleccionar un archivo: Buscamos su contenido en el ZIP
+  const handleSelectFile = async (file) => {
+    try {
+      const ultimoCommit = activeRepo.commits[0];
+      const ramaCommit = ultimoCommit.branch || activeRepo.defaultBranch || 'main';
+
+      // Pedimos el contenido al backend enviando la ruta (file.path)
+      const data = await gitService.getArchivoContenido(
+        activeRepo.name, 
+        ramaCommit, 
+        ultimoCommit.fullHash, 
+        file.path
+      );
+      
+      // Combinamos la info del archivo con su contenido real
+      setActiveFile({ ...file, content: data.content });
+      setCurrentView('view-file');
+    } catch (error) {
+      console.error('Error al cargar archivo:', error);
+      setActiveFile({ ...file, content: '// Error: No se pudo cargar el código de este archivo.' });
+      setCurrentView('view-file');
+    }
   };
 
   return (

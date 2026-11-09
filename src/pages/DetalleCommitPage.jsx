@@ -69,19 +69,32 @@ const DetalleCommitPage = () => {
               No hay líneas de código modificadas registradas en este commit.
             </div>
           ) : (
-            diffs.map((d, i) => (
-              <div
-                key={i}
-                className={`flex px-4 py-1 ${
-                  d.type === 'added' ? 'bg-[#00287d]/40 text-[#7bd0ff]' :
-                  d.type === 'deleted' ? 'bg-[#93000a]/40 text-[#ffb4ab]' : 'text-[#c3c5d8]'
-                }`}
-              >
-                <span className="w-8 text-[#8d90a2] select-none">{d.oldLine || ''}</span>
-                <span className="w-8 text-[#8d90a2] select-none">{d.newLine || ''}</span>
-                <pre className="whitespace-pre-wrap">{d.text}</pre>
-              </div>
-            ))
+            diffs.map((d, i) => {
+              // Asignación de estilos dinámicos según el tipo de línea
+              let bgClass = 'hover:bg-[#1f2434]/30 text-[#c3c5d8]';
+              if (d.type === 'added') bgClass = 'bg-[#22c55e]/30 text-[#7bd0ff]';
+              if (d.type === 'deleted') bgClass = 'bg-[#93000a]/30 text-[#ffb4ab]';
+              if (d.type === 'hunk') bgClass = 'bg-[#1b1f2c] text-[#8d90a2] font-bold';
+              if (d.type === 'added-header') bgClass = 'bg-[#22c55e]/50 text-[#7bd0ff] font-bold';
+              if (d.type === 'deleted-header') bgClass = 'bg-[#93000a]/50 text-[#ffb4ab] font-bold';
+
+              // Número de línea unificado para la única columna
+              const numeroLinea = d.newLine !== '' ? d.newLine : (d.oldLine !== '' ? d.oldLine : '');
+
+              return (
+                <div key={i} className={`flex items-center px-2 py-0.5 ${bgClass}`}>
+                  {/* Única columna de número de línea */}
+                  <span className="w-12 text-right pr-4 text-[#8d90a2] select-none shrink-0 font-mono">
+                    {numeroLinea}
+                  </span>
+
+                  {/* Contenido de la línea de código */}
+                  <pre className="whitespace-pre-wrap font-mono text-xs flex-1 leading-relaxed">
+                    {d.text}
+                  </pre>
+                </div>
+              );
+            })
           )}
         </div>
       </div>
