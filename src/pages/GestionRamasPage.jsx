@@ -2,11 +2,17 @@ import React, { useState } from 'react';
 import { useGit } from '../context/GitContext';
 
 const GestionRamasPage = () => {
-  const { activeRepo, handleAddBranch, handleDeleteBranch } = useGit();
+  const { activeRepo, activeRepoBranches, handleAddBranch, handleDeleteBranch, obtenerRamasProyecto } = useGit();
   const [newBranch, setNewBranch] = useState('');
 
   // Si no hay un repositorio activo seleccionado en el contexto, no renderizar nada
   if (!activeRepo) return null;
+
+  const handleRefrescarRamas = () => {
+    if (activeRepo) {
+      obtenerRamasProyecto(activeRepo.id);
+    }
+  };
 
   // Manejador para agregar una nueva rama
   const onAdd = (e) => {
@@ -42,12 +48,13 @@ const GestionRamasPage = () => {
           Ramas Activas ({activeRepo.branches?.length || 0})
         </div>
         <div className="divide-y divide-[#434656]/20">
-          {activeRepo.branches && activeRepo.branches.map((b, idx) => (
-            <div key={idx} className="flex justify-between items-center p-4 text-sm font-mono">
+          {activeRepoBranches.map(rama => (
+            <div key={rama.id} className="flex justify-between items-center p-4 text-sm font-mono">
               <span className="text-[#7bd0ff] flex items-center gap-2">
-                🌿 {b.name} {b.isDefault && <span className="text-[10px] bg-[#101a33] text-[#22c55e] px-2 py-0.5 rounded border border-[#22c55e]/30 font-sans">default</span>}
+                🌿 {rama.name} {rama.isDefault && <span className="text-[10px] bg-[#101a33] text-[#22c55e] px-2 py-0.5 rounded border border-[#22c55e]/30 font-sans">Principal (Activa)</span>}
               </span>
-              {!b.isDefault && (
+              <span className="text-sm text-gray-500">Creada: {rama.createdAt}</span>
+              {!rama.isDefault && (
                 <button
                   type="button"
                   onClick={() => handleDeleteBranch(b.name)}

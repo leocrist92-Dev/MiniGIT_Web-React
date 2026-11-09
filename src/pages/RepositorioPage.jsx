@@ -7,6 +7,7 @@ import SettingsPage from './SettingsPage';
 const RepositorioPage = () => {
   const {
     activeRepo,
+    activeRepoBranches,
     activeTab,
     setActiveTab,
     handleSelectFile,
@@ -87,7 +88,7 @@ const RepositorioPage = () => {
           >
             {tab === 'code' && '💻 Código'}
             {tab === 'commits' && `📜 Commits (${activeRepo.commits ? activeRepo.commits.length : 0})`}
-            {tab === 'branches' && `🌿 Ramas (${activeRepo.branches ? activeRepo.branches.length : 0})`}
+            {tab === 'branches' && `🌿 Ramas (${activeRepoBranches ? activeRepoBranches.length : 0})`}
             {tab === 'settings' && '⚙️ Configuración'}
           </button>
         ))}

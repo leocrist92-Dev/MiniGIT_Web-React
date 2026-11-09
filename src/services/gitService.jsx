@@ -110,6 +110,7 @@ export const gitService = {
       author: c.autor || 'Desarrollador',
       date: new Date(c.fecha).toLocaleDateString(),
       msg: c.mensaje,
+      branch: c.nombre,
       verified: true
     }));
   },
@@ -142,5 +143,30 @@ export const gitService = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.mensaje || 'Error al eliminar el repositorio');
     return true;
+  },
+
+  // Obtener ramas de un proyecto desde MySQL
+  getRepoBranches: async (repoId) => {
+    const res = await fetch(`${API_URL}/proyectos/${repoId}/ramas`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.mensaje || 'Error al obtener las ramas del repositorio');
+    }
+
+    const data = await res.json();
+    console.log("data rama" + data)
+
+    // Mapeo defensivo a la estructura que usa la UI de React
+    return data.map(r => ({
+      id: r.id,
+      name: r.nombre,
+      isDefault: r.activa === 'Si',
+      versionBaseId: r.id_version_base,
+      createdAt: r.fecha_creacion ? new Date(r.fecha_creacion).toLocaleDateString() : 'Sin fecha'
+    }));
   }
 };
