@@ -11,15 +11,27 @@ const RepositorioPage = () => {
     activeTab,
     setActiveTab,
     handleSelectFile,
+    handleClonarRepo,
     setCurrentView,
     user
   } = useGit();
   const [showClone, setShowClone] = useState(false);
+  const [cloning, setCloning] = useState(false);
 
   // Si no hay un repositorio activo cargado en el contexto, no renderizar nada
   if (!activeRepo) return null;
 
   const lastCommit = activeRepo.commits && activeRepo.commits.length > 0 ? activeRepo.commits[0] : null;
+  const ramaActiva = activeRepo.defaultBranch || 'main';
+
+  const onDescargarZip = async () => {
+    setCloning(true);
+    try {
+      await handleClonarRepo();
+    } finally {
+      setCloning(false);
+    }
+  };
 
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-6 text-[#dfe2f4]">
@@ -57,19 +69,30 @@ const RepositorioPage = () => {
       {showClone && (
         <div className="mb-6 p-4 bg-[#171b28] border border-[#7bd0ff]/40 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono shadow-lg">
           <span className="text-[#c3c5d8] truncate">
-            {activeRepo.cloneUrl || `https://minigit.internal/luis_dev/${activeRepo.name}.git`}
+            {activeRepo.cloneUrl || `https://minigit.internal/${user?.username || 'dev'}/${activeRepo.name}.git`}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(
-                activeRepo.cloneUrl || `https://minigit.internal/luis_dev/${activeRepo.name}.git`
-              );
-            }}
-            className="bg-[#252a37] hover:bg-[#353947] text-[#7bd0ff] px-3 py-1.5 rounded-lg border border-[#434656] cursor-pointer shrink-0"
-          >
-            Copiar URL
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  activeRepo.cloneUrl || `https://minigit.internal/${user?.username || 'dev'}/${activeRepo.name}.git`
+                );
+              }}
+              className="bg-[#252a37] hover:bg-[#353947] text-[#7bd0ff] px-3 py-1.5 rounded-lg border border-[#434656] cursor-pointer"
+            >
+              Copiar URL
+            </button>
+            <button
+              type="button"
+              disabled={cloning}
+              onClick={onDescargarZip}
+              className="bg-[#22c55e] hover:bg-[#16a34a] disabled:opacity-50 text-[#0a0e1a] font-bold px-3.5 py-1.5 rounded-lg border-0 cursor-pointer flex items-center gap-1.5 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[16px]">folder_zip</span>
+              <span>{cloning ? 'Empaquetando...' : `Descargar ZIP (${ramaActiva})`}</span>
+            </button>
+          </div>
         </div>
       )}
 

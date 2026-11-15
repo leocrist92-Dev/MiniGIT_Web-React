@@ -86,29 +86,20 @@ export const GitProvider = ({ children }) => {
     setCurrentView('repo-detail');
     setActiveTab('code'); // Asegurar que inicie en la pestaña de código
 
+    const ownerUsername = repo.owner || user?.nombre_usuario || user?.username;
+    const ramaActiva = repo.defaultBranch || 'main';
+
     // Si seleccionamos un repositorio, traemos sus commits reales desde la BD
     try {
-      const commits = await gitService.getRepoCommits(repo.id);
-      //setActiveRepo(prev => ({ ...prev, commits }));
-      obtenerRamasProyecto(repo.id)
-
-      let filesEstructura = [];
-      
-      // Si el repositorio tiene commits, leemos el ZIP del último commit para armar las carpetas
-      if (commits && commits.length > 0) {
-        const ultimoCommit = commits[0];
-        const ramaCommit = ultimoCommit.branch || repo.defaultBranch || 'main';
-        
-        filesEstructura = await gitService.getCommitEstructura(
-          repo.name, 
-          ramaCommit, 
-          ultimoCommit.fullHash
-        );
-      }
+      const [commitsData, ramasData, filesEstructura] = await Promise.all([
+        gitService.getRepoCommits(repo.id),
+        obtenerRamasProyecto(repo.id),
+        gitService.getRamaEstructura(ownerUsername, repo.name, ramaActiva)
+      ]);
 
       setActiveRepo(prev => ({
         ...prev,
-        commits: commits,
+        commits: commitsData,
         files: filesEstructura // Guardamos la estructura real devuelta por el backend
       }));
 
@@ -145,11 +136,14 @@ export const GitProvider = ({ children }) => {
 
   // Al seleccionar un commit: Buscamos su archivo diff.txt en el ZIP
   const handleSelectCommit = async (commit) => {
-    try {
-      const ramaCommit = commit.branch || activeRepo.defaultBranch || 'main';
+    if (!activeRepo) return;
+    const ownerUsername = activeRepo.owner || user?.nombre_usuario || user?.username;
+    const ramaCommit = commit.branch || activeRepo.defaultBranch || 'main';
 
+    try {
       // Pedimos el array de líneas agregadas/eliminadas al backend
       const diffs = await gitService.getCommitDiff(
+        ownerUsername,
         activeRepo.name, 
         ramaCommit, 
         commit.fullHash
@@ -172,26 +166,42 @@ export const GitProvider = ({ children }) => {
 
   // Al seleccionar un archivo: Buscamos su contenido en el ZIP
   const handleSelectFile = async (file) => {
-    try {
-      const ultimoCommit = activeRepo.commits[0];
-      const ramaCommit = ultimoCommit.branch || activeRepo.defaultBranch || 'main';
+    if (!activeRepo) return;
+    const ownerUsername = activeRepo.owner || user?.nombre_usuario || user?.username;
+    const ramaActiva = activeRepo.defaultBranch || 'main';
 
+    try {
       // Pedimos el contenido al backend enviando la ruta (file.path)
       const data = await gitService.getArchivoContenido(
+        ownerUsername,
         activeRepo.name, 
-        ramaCommit, 
-        ultimoCommit.fullHash, 
+        ramaActiva,  
         file.path
       );
       
       // Combinamos la info del archivo con su contenido real
-      setActiveFile({ ...file, content: data.content });
+      setActiveFile({ ...file, content: data.content, lines: data.lines });
       setCurrentView('view-file');
     } catch (error) {
       console.error('Error al cargar archivo:', error);
       setActiveFile({ ...file, content: '// Error: No se pudo cargar el código de este archivo.' });
       setCurrentView('view-file');
     }
+  };
+
+    // 3. Nueva función: Clonar (descargar ZIP completo de la rama activa)
+  const handleClonarRepo = async () => {
+    if (!activeRepo) return;
+    const ownerUsername = activeRepo.owner || user?.nombre_usuario || user?.username;
+    const ramaActiva = activeRepo.defaultBranch || 'main';
+
+    try {
+      await gitService.clonarRama(ownerUsername, activeRepo.name, ramaActiva);
+    } catch (error) {
+      console.error('Error al clonar el repositorio:', error);
+      alert(error.message || 'No se pudo descargar el repositorio.');
+    }
+
   };
 
   return (
@@ -219,7 +229,8 @@ export const GitProvider = ({ children }) => {
   handleDeleteBranch,
   handleDeleteRepo,
   handleSelectCommit,
-  handleSelectFile
+  handleSelectFile,
+  handleClonarRepo
   }}
   >
   {children}

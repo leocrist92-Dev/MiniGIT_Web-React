@@ -170,9 +170,66 @@ export const gitService = {
     }));
   },
 
+  // 1. Obtener estructura de carpetas y archivos vigentes de la rama
+  getRamaEstructura: async (username, repoName, branch) => {
+    const res = await fetch(`${API_URL}/archivos/${username}/${repoName}/${branch}/estructura`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.mensaje || 'Error al obtener la estructura de la rama');
+    }
+    return await res.json();
+  },
+
+  // 2. Obtener el código fuente de un archivo desde 'archivos-rama'
+  getArchivoContenido: async (username, repoName, branch, filePath) => {
+    const res = await fetch(
+      `${API_URL}/archivos/${username}/${repoName}/${branch}/archivo?path=${encodeURIComponent(filePath)}`,
+      {
+        method: 'GET',
+        headers: getAuthHeaders()
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.mensaje || 'Error al obtener el contenido del archivo');
+    }
+    return await res.json();
+  },
+
+  // 3. Descargar el proyecto completo de la rama como archivo .ZIP (Clonar)
+  clonarRama: async (username, repoName, branch) => {
+    const token = localStorage.getItem('minigit_token');
+    const res = await fetch(`${API_URL}/archivos/${username}/${repoName}/${branch}/clonar`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.mensaje || 'No se pudo descargar el repositorio');
+    }
+
+    // Convertir respuesta binaria en Blob y forzar descarga en el navegador
+    const blob = await res.blob();
+    const urlDescarga = window.URL.createObjectURL(blob);
+    const enlace = document.createElement('a');
+    enlace.href = urlDescarga;
+    enlace.download = `${repoName}-${branch}.zip`;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    window.URL.revokeObjectURL(urlDescarga);
+    return true;
+  },
+
   // Obtener estructura de carpetas de un commit
-  getCommitEstructura: async (repoName, branch, hash) => {
-    const res = await fetch(`${API_URL}/archivos/${repoName}/${branch}/${hash}/estructura`, {
+  getCommitEstructura: async (username, repoName, branch, hash) => {
+    const res = await fetch(`${API_URL}/archivos/${username}/${repoName}/${branch}/${hash}/estructura`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
@@ -180,20 +237,9 @@ export const gitService = {
     return await res.json();
   },
 
-  // Obtener el código fuente de un archivo específico
-  getArchivoContenido: async (repoName, branch, hash, filePath) => {
-    // filePath se envía por query string y se codifica por si tiene barras (/)
-    const res = await fetch(`${API_URL}/archivos/${repoName}/${branch}/${hash}/archivo?path=${encodeURIComponent(filePath)}`, {
-      method: 'GET',
-      headers: getAuthHeaders()
-    });
-    if (!res.ok) throw new Error('Error al obtener el contenido del archivo');
-    return await res.json();
-  },
-
   // Obtener las líneas modificadas (diff) de un commit
-  getCommitDiff: async (repoName, branch, hash) => {
-    const res = await fetch(`${API_URL}/archivos/${repoName}/${branch}/${hash}/diff`, {
+  getCommitDiff: async (username, repoName, branch, hash) => {
+    const res = await fetch(`${API_URL}/archivos/${username}/${repoName}/${branch}/${hash}/diff`, {
       method: 'GET',
       headers: getAuthHeaders()
     });
