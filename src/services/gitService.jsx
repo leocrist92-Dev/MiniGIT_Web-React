@@ -171,11 +171,16 @@ export const gitService = {
   },
 
   // 1. Obtener estructura de carpetas y archivos vigentes de la rama
-  getRamaEstructura: async (username, repoName, branch) => {
-    const res = await fetch(`${API_URL}/archivos/${username}/${repoName}/${branch}/estructura`, {
-      method: 'GET',
-      headers: getAuthHeaders()
-    });
+  // Obtener estructura de carpetas y archivos de un nivel específico de la rama
+  getRamaEstructura: async (username, repoName, branch, subDir = '') => {
+    const query = subDir ? `?dir=${encodeURIComponent(subDir)}` : '';
+    const res = await fetch(
+      `${API_URL}/archivos/${username}/${repoName}/${branch}/estructura${query}`,
+      {
+        method: 'GET',
+        headers: getAuthHeaders()
+      }
+    );
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.mensaje || 'Error al obtener la estructura de la rama');

@@ -22,6 +22,9 @@ export const GitProvider = ({ children }) => {
   const [currentView, setCurrentView] = useState('dashboard'); // 'login', 'dashboard', 'new-repo', 'repo-detail', 'commit-detail', 'view-file'
   const [loading, setLoading] = useState(false);
 
+  const [currentFolderPath, setCurrentFolderPath] = useState('');
+  const [loadingFiles, setLoadingFiles] = useState(false);
+
   /*useEffect(() => {
   fetchRepos();
   }, []);*/
@@ -85,16 +88,18 @@ export const GitProvider = ({ children }) => {
     setActiveRepo(repo);
     setCurrentView('repo-detail');
     setActiveTab('code'); // Asegurar que inicie en la pestaña de código
+    setCurrentFolderPath('');
 
     const ownerUsername = repo.owner || user?.nombre_usuario || user?.username;
     const ramaActiva = repo.defaultBranch || 'main';
 
+    setLoadingFiles(true);
     // Si seleccionamos un repositorio, traemos sus commits reales desde la BD
     try {
       const [commitsData, ramasData, filesEstructura] = await Promise.all([
         gitService.getRepoCommits(repo.id),
         obtenerRamasProyecto(repo.id),
-        gitService.getRamaEstructura(ownerUsername, repo.name, ramaActiva)
+        gitService.getRamaEstructura(ownerUsername, repo.name, ramaActiva, '')
       ]);
 
       setActiveRepo(prev => ({
@@ -106,6 +111,42 @@ export const GitProvider = ({ children }) => {
     } catch (error) {
       console.error('Error cargando historial de commits:', error);
     }
+  };
+
+  // 2. Navegar a una subcarpeta específica (o volver a raíz si targetPath === '')
+  const handleNavigateFolder = async (targetPath = '') => {
+    if (!activeRepo) return;
+    const ownerUsername = activeRepo.owner || user?.nombre_usuario || user?.username;
+    const ramaActiva = activeRepo.defaultBranch || 'main';
+
+    setLoadingFiles(true);
+    try {
+      const filesEstructura = await gitService.getRamaEstructura(
+        ownerUsername,
+        activeRepo.name,
+        ramaActiva,
+        targetPath
+      );
+
+      setCurrentFolderPath(targetPath);
+      setActiveRepo(prev => ({
+        ...prev,
+        files: filesEstructura
+      }));
+    } catch (error) {
+      console.error('Error al abrir la carpeta:', error);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
+
+  // 3. Subir un nivel hacia la carpeta padre ('..')
+  const handleNavigateUp = async () => {
+    if (!currentFolderPath) return;
+    const segmentos = currentFolderPath.split('/').filter(Boolean);
+    segmentos.pop();
+    const rutaPadre = segmentos.join('/');
+    await handleNavigateFolder(rutaPadre);
   };
 
   const handleAddBranch = async (branchName) => {
@@ -224,6 +265,8 @@ export const GitProvider = ({ children }) => {
   handleLogout,
   handleCreateRepo,
   handleSelectRepo,
+  handleNavigateFolder,
+  handleNavigateUp,
   obtenerRamasProyecto,     // <-- Función exportada por si se requiere refrescar manualmente
   handleAddBranch,
   handleDeleteBranch,

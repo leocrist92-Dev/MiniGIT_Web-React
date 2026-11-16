@@ -10,6 +10,10 @@ const RepositorioPage = () => {
     activeRepoBranches,
     activeTab,
     setActiveTab,
+    currentFolderPath,
+    loadingFiles,
+    handleNavigateFolder,
+    handleNavigateUp,
     handleSelectFile,
     handleClonarRepo,
     setCurrentView,
@@ -23,6 +27,10 @@ const RepositorioPage = () => {
 
   const lastCommit = activeRepo.commits && activeRepo.commits.length > 0 ? activeRepo.commits[0] : null;
   const ramaActiva = activeRepo.defaultBranch || 'main';
+  const ownerUsername = activeRepo.owner || user?.username || user?.nombre_usuario || 'usuario';
+
+  // Segmentos de ruta para construir las migas de pan (Breadcrumbs)
+  const folderSegments = currentFolderPath ? currentFolderPath.split('/').filter(Boolean) : [];
 
   const onDescargarZip = async () => {
     setCloning(true);
@@ -47,7 +55,12 @@ const RepositorioPage = () => {
             {user.username}
           </span>
           <span className="text-[#8d90a2]">/</span>
-          <span className="text-[#7bd0ff]">{activeRepo.name}</span>
+          <span
+            className="text-[#7bd0ff] cursor-pointer hover:underline"
+            onClick={() => handleNavigateFolder('')}
+          >
+            {activeRepo.name}
+          </span>
           <span className="text-xs px-2.5 py-0.5 rounded-full bg-[#252a37] text-[#c3c5d8] border border-[#434656] font-normal ml-2">
             {activeRepo.visibility}
           </span>
@@ -119,45 +132,113 @@ const RepositorioPage = () => {
 
       {/* 3. Contenido Dinámico según la Pestaña Activa */}
       {activeTab === 'code' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
+          {/* Barra de Ruta Actual (Breadcrumbs) */}
+          {folderSegments.length > 0 && (
+            <div className="bg-[#171b28] border border-[#434656]/40 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-1.5 text-xs font-mono">
+              <span className="material-symbols-outlined text-[16px] text-[#7bd0ff] mr-1">account_tree</span>
+              <button
+                type="button"
+                onClick={() => handleNavigateFolder('')}
+                className="text-[#7bd0ff] hover:underline font-bold bg-transparent border-0 p-0 cursor-pointer"
+              >
+                {activeRepo.name}
+              </button>
+              {folderSegments.map((segment, index) => {
+                const pathHastaAqui = folderSegments.slice(0, index + 1).join('/');
+                const esUltimo = index === folderSegments.length - 1;
+                return (
+                  <React.Fragment key={pathHastaAqui}>
+                    <span className="text-[#8d90a2]">/</span>
+                    {esUltimo ? (
+                      <span className="text-white font-semibold">{segment}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleNavigateFolder(pathHastaAqui)}
+                        className="text-[#7bd0ff] hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                      >
+                        {segment}
+                      </button>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Contenedor Principal del Explorador de Archivos */}
           <div className="bg-[#1b1f2c] border border-[#434656]/40 rounded-xl overflow-hidden shadow-xl">
-            {/* Información del último commit */}
+            {/* Cabecera del último commit */}
             <div className="bg-[#171b28] p-3 text-xs flex justify-between items-center border-b border-[#434656]/40 text-[#c3c5d8]">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#22c55e]"></span>
                 <span>
                   Último commit por{' '}
-                  <strong className="text-white">{lastCommit?.author || 'luis_dev'}</strong>:{' '}
-                  {lastCommit?.msg || 'Initial commit'}
+                  <strong className="text-white">{lastCommit?.author || ownerUsername}</strong>:{' '}
+                  {lastCommit?.msg || 'Sin commits registrados'}
                 </span>
               </div>
-              <span className="font-mono">{lastCommit?.hash || 'a1b2c3d'} • {lastCommit?.date || 'recientemente'}</span>
+              <span className="font-mono">
+                {lastCommit ? `${lastCommit.hash} • ${lastCommit.date}` : ramaActiva}
+              </span>
             </div>
 
-            {/* Explorador de archivos del repositorio */}
+            {/* Listado de Archivos y Carpetas del Nivel Actual */}
             <div className="divide-y divide-[#434656]/20">
-              {activeRepo.files && activeRepo.files.length > 0 ? (
+              {/* Fila '..' para regresar al directorio padre si estamos dentro de una subcarpeta */}
+              {currentFolderPath !== '' && (
+                <div
+                  onClick={handleNavigateUp}
+                  className="flex items-center justify-between p-3.5 hover:bg-[#252a37]/60 cursor-pointer transition-colors text-sm bg-[#171b28]/40"
+                >
+                  <div className="flex items-center gap-3 font-mono text-[#7bd0ff] font-bold">
+                    <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+                    <span>..</span>
+                  </div>
+                  <div className="text-xs text-[#8d90a2]">Subir un nivel</div>
+                  <div className="text-xs text-[#8d90a2] font-mono"></div>
+                </div>
+              )}
+
+              {loadingFiles ? (
+                <div className="p-6 text-center text-xs text-[#7bd0ff] font-mono">
+                  Cargando contenido de la carpeta...
+                </div>
+              ) : activeRepo.files && activeRepo.files.length > 0 ? (
                 activeRepo.files.map((file, idx) => (
                   <div
-                    key={idx}
-                    onClick={() => file.type === 'file' && handleSelectFile(file)}
-                    className={`flex items-center justify-between p-3.5 transition-colors text-sm ${
-                      file.type === 'file' ? 'hover:bg-[#252a37]/60 cursor-pointer' : 'hover:bg-[#252a37]/30'
-                    }`}
+                    key={file.path || idx}
+                    onClick={() =>
+                      file.type === 'folder'
+                        ? handleNavigateFolder(file.path)
+                        : handleSelectFile(file)
+                    }
+                    className="flex items-center justify-between p-3.5 hover:bg-[#252a37]/60 cursor-pointer transition-colors text-sm"
                   >
-                    <div className="flex items-center gap-3 font-mono text-[#7bd0ff]">
-                      <span className="material-symbols-outlined text-[18px]">
+                    <div className="flex items-center gap-3 font-mono">
+                      <span
+                        className={`material-symbols-outlined text-[18px] ${
+                          file.type === 'folder' ? 'text-[#f59e0b]' : 'text-[#7bd0ff]'
+                        }`}
+                      >
                         {file.type === 'folder' ? 'folder' : 'description'}
                       </span>
-                      <span className="hover:underline">{file.name}</span>
+                      <span
+                        className={`hover:underline ${
+                          file.type === 'folder' ? 'text-white font-semibold' : 'text-[#7bd0ff]'
+                        }`}
+                      >
+                        {file.name}
+                      </span>
                     </div>
                     <div className="text-xs text-[#c3c5d8]">{file.msg}</div>
                     <div className="text-xs text-[#8d90a2] font-mono">{file.date}</div>
                   </div>
                 ))
               ) : (
-                <div className="p-4 text-center text-xs text-[#8d90a2]">
-                  No hay archivos en este repositorio.
+                <div className="p-6 text-center text-xs text-[#8d90a2]">
+                  Esta carpeta está vacía.
                 </div>
               )}
             </div>
