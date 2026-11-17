@@ -3,6 +3,8 @@ import { useGit } from '../context/GitContext';
 import HistorialCommitsPage from './HistorialCommitsPage';
 import GestionRamasPage from './GestionRamasPage';
 import SettingsPage from './SettingsPage';
+import VerArchivoPage from './VerArchivoPage';
+import VerDiffCommitPage from './DetalleCommitPage';
 
 const RepositorioPage = () => {
   const {
@@ -10,6 +12,10 @@ const RepositorioPage = () => {
     activeRepoBranches,
     activeTab,
     setActiveTab,
+    activeFile,
+    setActiveFile,
+    activeCommit,
+    setActiveCommit,
     currentFolderPath,
     loadingFiles,
     handleNavigateFolder,
@@ -19,17 +25,15 @@ const RepositorioPage = () => {
     setCurrentView,
     user
   } = useGit();
+
   const [showClone, setShowClone] = useState(false);
   const [cloning, setCloning] = useState(false);
 
-  // Si no hay un repositorio activo cargado en el contexto, no renderizar nada
   if (!activeRepo) return null;
 
   const lastCommit = activeRepo.commits && activeRepo.commits.length > 0 ? activeRepo.commits[0] : null;
   const ramaActiva = activeRepo.defaultBranch || 'main';
-  const ownerUsername = activeRepo.owner || user?.username || user?.nombre_usuario || 'usuario';
-
-  // Segmentos de ruta para construir las migas de pan (Breadcrumbs)
+  const ownerUsername = activeRepo.owner || user?.nombre_usuario || user?.username || 'usuario';
   const folderSegments = currentFolderPath ? currentFolderPath.split('/').filter(Boolean) : [];
 
   const onDescargarZip = async () => {
@@ -41,9 +45,21 @@ const RepositorioPage = () => {
     }
   };
 
+  // Si pulsas 'code' estando viendo un archivo, regresa a carpetas;
+  // si pulsas 'commits' estando viendo un diff, regresa al historial de commits.
+  const handleTabClick = (tab) => {
+    if (tab === 'code') {
+      setActiveFile(null);
+    }
+    if (tab === 'commits') {
+      setActiveCommit(null);
+    }
+    setActiveTab(tab);
+  };
+
   return (
     <div className="max-w-[1400px] mx-auto px-6 py-6 text-[#dfe2f4]">
-      {/* 1. Cabecera del Repositorio (Ruta, Nombre, Visibilidad y Botón de Clonar) */}
+      {/* 1. Cabecera del Repositorio */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
         <div className="flex flex-wrap items-center gap-2 text-xl font-bold">
           <span className="material-symbols-outlined text-[#7bd0ff]">folder_special</span>
@@ -51,13 +67,17 @@ const RepositorioPage = () => {
             className="text-[#c3c5d8] cursor-pointer hover:underline"
             onClick={() => setCurrentView('dashboard')}
           >
-            {/*activeRepo.owner*/}
-            {user.username}
+            {ownerUsername}
           </span>
           <span className="text-[#8d90a2]">/</span>
           <span
             className="text-[#7bd0ff] cursor-pointer hover:underline"
-            onClick={() => handleNavigateFolder('')}
+            onClick={() => {
+              setActiveFile(null);
+              setActiveCommit(null);
+              setActiveTab('code');
+              handleNavigateFolder('');
+            }}
           >
             {activeRepo.name}
           </span>
@@ -78,18 +98,18 @@ const RepositorioPage = () => {
         </div>
       </div>
 
-      {/* Caja desplegable de URL de clonación */}
+      {/* Caja desplegable de Clonar / Descargar ZIP */}
       {showClone && (
         <div className="mb-6 p-4 bg-[#171b28] border border-[#7bd0ff]/40 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono shadow-lg">
           <span className="text-[#c3c5d8] truncate">
-            {activeRepo.cloneUrl || `https://minigit.internal/${user?.username || 'dev'}/${activeRepo.name}.git`}
+            {activeRepo.cloneUrl || `https://minigit.internal/${ownerUsername}/${activeRepo.name}.git`}
           </span>
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => {
                 navigator.clipboard.writeText(
-                  activeRepo.cloneUrl || `https://minigit.internal/${user?.username || 'dev'}/${activeRepo.name}.git`
+                  activeRepo.cloneUrl || `https://minigit.internal/${ownerUsername}/${activeRepo.name}.git`
                 );
               }}
               className="bg-[#252a37] hover:bg-[#353947] text-[#7bd0ff] px-3 py-1.5 rounded-lg border border-[#434656] cursor-pointer"
@@ -115,7 +135,7 @@ const RepositorioPage = () => {
           <button
             key={tab}
             type="button"
-            onClick={() => setActiveTab(tab)}
+            onClick={() => handleTabClick(tab)}
             className={`pb-3 capitalize transition-all cursor-pointer bg-transparent border-0 ${
               activeTab === tab
                 ? 'border-b-2 border-[#f59e0b] text-white font-bold'
@@ -131,123 +151,128 @@ const RepositorioPage = () => {
       </div>
 
       {/* 3. Contenido Dinámico según la Pestaña Activa */}
+      {/* PESTAÑA CÓDIGO: Alterna entre VerArchivoPage y el Explorador de Carpetas */}
       {activeTab === 'code' && (
-        <div className="space-y-4">
-          {/* Barra de Ruta Actual (Breadcrumbs) */}
-          {folderSegments.length > 0 && (
-            <div className="bg-[#171b28] border border-[#434656]/40 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-1.5 text-xs font-mono">
-              <span className="material-symbols-outlined text-[16px] text-[#7bd0ff] mr-1">account_tree</span>
-              <button
-                type="button"
-                onClick={() => handleNavigateFolder('')}
-                className="text-[#7bd0ff] hover:underline font-bold bg-transparent border-0 p-0 cursor-pointer"
-              >
-                {activeRepo.name}
-              </button>
-              {folderSegments.map((segment, index) => {
-                const pathHastaAqui = folderSegments.slice(0, index + 1).join('/');
-                const esUltimo = index === folderSegments.length - 1;
-                return (
-                  <React.Fragment key={pathHastaAqui}>
-                    <span className="text-[#8d90a2]">/</span>
-                    {esUltimo ? (
-                      <span className="text-white font-semibold">{segment}</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleNavigateFolder(pathHastaAqui)}
-                        className="text-[#7bd0ff] hover:underline bg-transparent border-0 p-0 cursor-pointer"
-                      >
-                        {segment}
-                      </button>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          )}
+        activeFile ? (
+          <VerArchivoPage />
+        ) : (
+          <div className="space-y-4">
+            {/* Barra de Breadcrumbs */}
+            {folderSegments.length > 0 && (
+              <div className="bg-[#171b28] border border-[#434656]/40 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-1.5 text-xs font-mono">
+                <span className="material-symbols-outlined text-[16px] text-[#7bd0ff] mr-1">account_tree</span>
+                <button
+                  type="button"
+                  onClick={() => handleNavigateFolder('')}
+                  className="text-[#7bd0ff] hover:underline font-bold bg-transparent border-0 p-0 cursor-pointer"
+                >
+                  {activeRepo.name}
+                </button>
+                {folderSegments.map((segment, index) => {
+                  const pathHastaAqui = folderSegments.slice(0, index + 1).join('/');
+                  const esUltimo = index === folderSegments.length - 1;
+                  return (
+                    <React.Fragment key={pathHastaAqui}>
+                      <span className="text-[#8d90a2]">/</span>
+                      {esUltimo ? (
+                        <span className="text-white font-semibold">{segment}</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleNavigateFolder(pathHastaAqui)}
+                          className="text-[#7bd0ff] hover:underline bg-transparent border-0 p-0 cursor-pointer"
+                        >
+                          {segment}
+                        </button>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            )}
 
-          {/* Contenedor Principal del Explorador de Archivos */}
-          <div className="bg-[#1b1f2c] border border-[#434656]/40 rounded-xl overflow-hidden shadow-xl">
-            {/* Cabecera del último commit */}
-            <div className="bg-[#171b28] p-3 text-xs flex justify-between items-center border-b border-[#434656]/40 text-[#c3c5d8]">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#22c55e]"></span>
-                <span>
-                  Último commit por{' '}
-                  <strong className="text-white">{lastCommit?.author || ownerUsername}</strong>:{' '}
-                  {lastCommit?.msg || 'Sin commits registrados'}
+            {/* Tabla de Carpetas y Archivos */}
+            <div className="bg-[#1b1f2c] border border-[#434656]/40 rounded-xl overflow-hidden shadow-xl">
+              <div className="bg-[#171b28] p-3 text-xs flex justify-between items-center border-b border-[#434656]/40 text-[#c3c5d8]">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#22c55e]"></span>
+                  <span>
+                    Último commit por{' '}
+                    <strong className="text-white">{lastCommit?.author || ownerUsername}</strong>:{' '}
+                    {lastCommit?.msg || 'Sin commits registrados'}
+                  </span>
+                </div>
+                <span className="font-mono">
+                  {lastCommit ? `${lastCommit.hash} • ${lastCommit.date}` : ramaActiva}
                 </span>
               </div>
-              <span className="font-mono">
-                {lastCommit ? `${lastCommit.hash} • ${lastCommit.date}` : ramaActiva}
-              </span>
-            </div>
 
-            {/* Listado de Archivos y Carpetas del Nivel Actual */}
-            <div className="divide-y divide-[#434656]/20">
-              {/* Fila '..' para regresar al directorio padre si estamos dentro de una subcarpeta */}
-              {currentFolderPath !== '' && (
-                <div
-                  onClick={handleNavigateUp}
-                  className="flex items-center justify-between p-3.5 hover:bg-[#252a37]/60 cursor-pointer transition-colors text-sm bg-[#171b28]/40"
-                >
-                  <div className="flex items-center gap-3 font-mono text-[#7bd0ff] font-bold">
-                    <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
-                    <span>..</span>
-                  </div>
-                  <div className="text-xs text-[#8d90a2]">Subir un nivel</div>
-                  <div className="text-xs text-[#8d90a2] font-mono"></div>
-                </div>
-              )}
-
-              {loadingFiles ? (
-                <div className="p-6 text-center text-xs text-[#7bd0ff] font-mono">
-                  Cargando contenido de la carpeta...
-                </div>
-              ) : activeRepo.files && activeRepo.files.length > 0 ? (
-                activeRepo.files.map((file, idx) => (
+              <div className="divide-y divide-[#434656]/20">
+                {currentFolderPath !== '' && (
                   <div
-                    key={file.path || idx}
-                    onClick={() =>
-                      file.type === 'folder'
-                        ? handleNavigateFolder(file.path)
-                        : handleSelectFile(file)
-                    }
-                    className="flex items-center justify-between p-3.5 hover:bg-[#252a37]/60 cursor-pointer transition-colors text-sm"
+                    onClick={handleNavigateUp}
+                    className="flex items-center justify-between p-3.5 hover:bg-[#252a37]/60 cursor-pointer transition-colors text-sm bg-[#171b28]/40"
                   >
-                    <div className="flex items-center gap-3 font-mono">
-                      <span
-                        className={`material-symbols-outlined text-[18px] ${
-                          file.type === 'folder' ? 'text-[#f59e0b]' : 'text-[#7bd0ff]'
-                        }`}
-                      >
-                        {file.type === 'folder' ? 'folder' : 'description'}
-                      </span>
-                      <span
-                        className={`hover:underline ${
-                          file.type === 'folder' ? 'text-white font-semibold' : 'text-[#7bd0ff]'
-                        }`}
-                      >
-                        {file.name}
-                      </span>
+                    <div className="flex items-center gap-3 font-mono text-[#7bd0ff] font-bold">
+                      <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
+                      <span>..</span>
                     </div>
-                    <div className="text-xs text-[#c3c5d8]">{file.msg}</div>
-                    <div className="text-xs text-[#8d90a2] font-mono">{file.date}</div>
+                    <div className="text-xs text-[#8d90a2]">Subir un nivel</div>
+                    <div className="text-xs text-[#8d90a2] font-mono"></div>
                   </div>
-                ))
-              ) : (
-                <div className="p-6 text-center text-xs text-[#8d90a2]">
-                  Esta carpeta está vacía.
-                </div>
-              )}
+                )}
+
+                {loadingFiles ? (
+                  <div className="p-6 text-center text-xs text-[#7bd0ff] font-mono">
+                    Cargando contenido de la carpeta...
+                  </div>
+                ) : activeRepo.files && activeRepo.files.length > 0 ? (
+                  activeRepo.files.map((file, idx) => (
+                    <div
+                      key={file.path || idx}
+                      onClick={() =>
+                        file.type === 'folder'
+                          ? handleNavigateFolder(file.path)
+                          : handleSelectFile(file)
+                      }
+                      className="flex items-center justify-between p-3.5 hover:bg-[#252a37]/60 cursor-pointer transition-colors text-sm"
+                    >
+                      <div className="flex items-center gap-3 font-mono">
+                        <span
+                          className={`material-symbols-outlined text-[18px] ${
+                            file.type === 'folder' ? 'text-[#f59e0b]' : 'text-[#7bd0ff]'
+                          }`}
+                        >
+                          {file.type === 'folder' ? 'folder' : 'description'}
+                        </span>
+                        <span
+                          className={`hover:underline ${
+                            file.type === 'folder' ? 'text-white font-semibold' : 'text-[#7bd0ff]'
+                          }`}
+                        >
+                          {file.name}
+                        </span>
+                      </div>
+                      <div className="text-xs text-[#c3c5d8]">{file.msg}</div>
+                      <div className="text-xs text-[#8d90a2] font-mono">{file.date}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-6 text-center text-xs text-[#8d90a2]">
+                    Esta carpeta está vacía.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )
       )}
 
-      {/* Renderizado de las sub-páginas según la pestaña seleccionada */}
-      {activeTab === 'commits' && <HistorialCommitsPage />}
+      {/* PESTAÑA COMMITS: Alterna entre VerDiffCommitPage e HistorialCommitsPage */}
+      {activeTab === 'commits' && (
+        activeCommit ? <VerDiffCommitPage /> : <HistorialCommitsPage />
+      )}
+
       {activeTab === 'branches' && <GestionRamasPage />}
       {activeTab === 'settings' && <SettingsPage />}
     </div>

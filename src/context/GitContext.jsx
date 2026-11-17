@@ -25,20 +25,6 @@ export const GitProvider = ({ children }) => {
   const [currentFolderPath, setCurrentFolderPath] = useState('');
   const [loadingFiles, setLoadingFiles] = useState(false);
 
-  /*useEffect(() => {
-  fetchRepos();
-  }, []);*/
-
-  /*const fetchRepos = async () => {
-  setLoading(true);
-  const data = await gitService.getRepos();
-  setRepos(data);
-  if (data.length > 0 && !activeRepo) {
-  setActiveRepo(data[0]);
-  }
-  setLoading(false);
-  };*/
-
   const handleLogin = async (email, password) => {
     try {
       const user = await gitService.login(email, password);
@@ -74,9 +60,20 @@ export const GitProvider = ({ children }) => {
     }
   };
 
-  const handleCreateRepo = async (formData) => {
+  const handleCreateRepo = async (repoData, parentDirHandle = null) => {
     setLoading(true);
-    const newRepo = await gitService.createRepo(formData);
+    if (parentDirHandle) {
+      try {
+        await parentDirHandle.getDirectoryHandle(repoData.name, { create: true });
+      } catch (fsErr) {
+        console.error('Error creando la carpeta en el computador cliente:', fsErr);
+        throw new Error(
+          `No se pudo crear la carpeta "${repoData.name}" en tu disco local: ${fsErr.message}`
+        );
+      }
+    }
+    const newRepo = await gitService.createRepo(repoData);
+
     setRepos([newRepo, ...repos]);
     setActiveRepo(newRepo);
     setCurrentView('repo-detail');
@@ -86,6 +83,9 @@ export const GitProvider = ({ children }) => {
 
   const handleSelectRepo = async (repo) => {
     setActiveRepo(repo);
+    setActiveFile(null);
+    setActiveCommit(null);
+    setCurrentFolderPath('');
     setCurrentView('repo-detail');
     setActiveTab('code'); // Asegurar que inicie en la pestaña de código
     setCurrentFolderPath('');
@@ -177,7 +177,7 @@ export const GitProvider = ({ children }) => {
 
   // Al seleccionar un commit: Buscamos su archivo diff.txt en el ZIP
   const handleSelectCommit = async (commit) => {
-    if (!activeRepo) return;
+    if (!activeRepo || !commit) return;
     const ownerUsername = activeRepo.owner || user?.nombre_usuario || user?.username;
     const ramaCommit = commit.branch || activeRepo.defaultBranch || 'main';
 
@@ -197,7 +197,9 @@ export const GitProvider = ({ children }) => {
       });
 
       // Cambiamos a la vista que muestra DetalleCommitPage.jsx
-      setCurrentView('commit-detail');
+      //setCurrentView('commit-detail');
+      setCurrentView('repo-detail');
+      setActiveTab('commits');
     } catch (error) {
       console.error('Error al cargar el diff:', error);
       setActiveCommit({ ...commit, diffs: [] });
@@ -207,7 +209,7 @@ export const GitProvider = ({ children }) => {
 
   // Al seleccionar un archivo: Buscamos su contenido en el ZIP
   const handleSelectFile = async (file) => {
-    if (!activeRepo) return;
+    if (!activeRepo || !file) return;
     const ownerUsername = activeRepo.owner || user?.nombre_usuario || user?.username;
     const ramaActiva = activeRepo.defaultBranch || 'main';
 
@@ -222,7 +224,9 @@ export const GitProvider = ({ children }) => {
       
       // Combinamos la info del archivo con su contenido real
       setActiveFile({ ...file, content: data.content, lines: data.lines });
-      setCurrentView('view-file');
+      //setCurrentView('view-file');
+      setCurrentView('repo-detail');
+      setActiveTab('code');
     } catch (error) {
       console.error('Error al cargar archivo:', error);
       setActiveFile({ ...file, content: '// Error: No se pudo cargar el código de este archivo.' });
@@ -261,6 +265,8 @@ export const GitProvider = ({ children }) => {
   setActiveTab,
   setActiveBranch,
   setCurrentView,
+  setActiveFile,
+  setActiveCommit,
   handleLogin,
   handleLogout,
   handleCreateRepo,

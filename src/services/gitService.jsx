@@ -30,7 +30,8 @@ export const gitService = {
     // Guardar token JWT y datos de usuario en localStorage
     if (data.token) {
       localStorage.setItem('minigit_token', data.token);
-      localStorage.setItem('minigit_user', JSON.stringify(data.usuario));
+      //localStorage.setItem('minigit_user', JSON.stringify(data.usuario));
+      localStorage.setItem('minigit_user', JSON.stringify(data.user));
     }
     return data.user;
   },
@@ -65,15 +66,18 @@ export const gitService = {
 
   // 3. CREAR UN NUEVO REPOSITORIO (POST /api/proyectos)
   createRepo: async (repoData) => {
+    const usuario = localStorage.getItem('minigit_user');
     const res = await fetch(`${API_URL}/proyectos`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
         nombre: repoData.name,
         descripcion: repoData.desc,
-        visibilidad: repoData.visibility === 'private' ? 'Privado' : 'Publico',
-        ruta: `/var/minigit/repos/${repoData.name}` // Ruta interna en backend
-      })
+        visibilidad: repoData.visibility === 'Privado' ? 'Privado' : 'Publico',
+        ruta: repoData.ruta,
+        defaultBranch: repoData.defaultBranch
+      }),
+      user: usuario
     });
 
     const data = await res.json();
